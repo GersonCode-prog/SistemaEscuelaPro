@@ -1,0 +1,12 @@
+---
+import Portal from '../../layouts/Portal.astro';
+---
+<Portal rol="padre" activo="mensajes" titulo="Mensajes">
+  <div id="vista"></div>
+</Portal>
+
+<script>
+  import { iniciar } from '../../lib/app';
+  import { paginaMensajes } from '../../paginas/comunidad';
+  iniciar(paginaMensajes);
+</script>

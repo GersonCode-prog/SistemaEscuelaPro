@@ -1,0 +1,25 @@
+---
+// Plantilla de las páginas públicas (sitio del colegio e inicio de sesión)
+import '@fontsource-variable/plus-jakarta-sans';
+import '../styles/global.css';
+import type { Rol } from '../lib/tipos';
+
+interface Props { titulo: string; descripcion?: string; rol?: Rol; }
+const { titulo, descripcion = 'Plataforma escolar del Colegio Valle Esmeralda: portales para estudiantes, maestros, padres de familia, dirección y administración.', rol = 'estudiante' } = Astro.props;
+---
+<!doctype html>
+<html lang="es" data-rol={rol}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={descripcion} />
+    <meta name="theme-color" content="#0f172a" />
+    <title>{titulo}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+    <slot name="head" />
+  </head>
+  <body>
+    <slot />
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+  </body>
+</html>

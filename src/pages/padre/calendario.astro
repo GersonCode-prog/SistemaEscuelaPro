@@ -1,0 +1,12 @@
+---
+import Portal from '../../layouts/Portal.astro';
+---
+<Portal rol="padre" activo="calendario" titulo="Calendario">
+  <div id="vista"></div>
+</Portal>
+
+<script>
+  import { iniciar } from '../../lib/app';
+  import { paginaCalendario } from '../../paginas/comunidad';
+  iniciar(paginaCalendario);
+</script>

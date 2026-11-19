@@ -1,0 +1,12 @@
+---
+import Portal from '../../layouts/Portal.astro';
+---
+<Portal rol="estudiante" activo="calificaciones" titulo="Mis calificaciones">
+  <div id="vista"></div>
+</Portal>
+
+<script>
+  import { iniciar } from '../../lib/app';
+  import { paginaCalificaciones } from '../../paginas/academico';
+  iniciar(paginaCalificaciones);
+</script>

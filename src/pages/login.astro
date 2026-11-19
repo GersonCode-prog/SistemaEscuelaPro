@@ -1,0 +1,265 @@
+---
+// Inicio de sesión con selección de portal (rol)
+import Publico from '../layouts/Publico.astro';
+import { ROLES } from '../lib/escuela';
+import { icono } from '../lib/iconos';
+import { ruta } from '../lib/ruta';
+import { ORDEN_ROLES, NOMBRE_CORTO, PUNTOS_ROL } from '../lib/presentacion';
+
+const base = ruta('');
+const ciclo = new Date().getFullYear();
+const inicial = ROLES.estudiante;
+---
+<Publico titulo="Iniciar sesión · EscuelaPro" descripcion="Ingresa al portal de EscuelaPro: estudiantes, maestros, padres de familia, dirección y administración.">
+  <!-- Con sesión activa: directo al portal. Sin sesión: aplica el color del rol elegido antes de pintar -->
+  <script is:inline slot="head" define:vars={{ base }}>
+    (function () {
+      var s = null;
+      try { s = JSON.parse(sessionStorage.getItem('ep_sesion') || localStorage.getItem('ep_sesion') || 'null'); } catch (e) {}
+      if (s && s.rol) { location.replace(base + '/' + s.rol + '/'); return; }
+      var r = new URLSearchParams(location.search).get('rol');
+      try { r = r || localStorage.getItem('escuelapro:rol'); } catch (e) {}
+      if (['estudiante', 'maestro', 'padre', 'director', 'admin'].indexOf(r) >= 0) document.documentElement.setAttribute('data-rol', r);
+    })();
+  </script>
+
+  <div class="l-pagina">
+    <!-- Panel de color del portal -->
+    <aside class="l-panel">
+      <span class="l-circulo c1"></span><span class="l-circulo c2"></span>
+      <a class="l-marca" href={ruta('/')}>
+        <span class="l-logo"><Fragment set:html={icono('birrete', 22)} /></span>
+        <span>EscuelaPro<small>Colegio Valle Esmeralda</small></span>
+      </a>
+      <div class="l-panel-centro">
+        <span class="l-panel-emoji" id="panel-emoji">{inicial.emoji}</span>
+        <h2 id="panel-titulo">{inicial.portal}</h2>
+        <p id="panel-texto">{inicial.descripcion}</p>
+        <ul id="panel-puntos">{PUNTOS_ROL.estudiante.map((p) => <li><span><Fragment set:html={icono('check', 14)} /></span>{p}</li>)}</ul>
+      </div>
+      <p class="l-panel-pie">🔒 Cada persona ve solo la información que le corresponde · Ciclo {ciclo}</p>
+    </aside>
+
+    <!-- Formulario -->
+    <main class="l-principal">
+      <a class="l-volver" href={ruta('/')}><Fragment set:html={icono('izquierda', 16)} /> Volver al sitio del colegio</a>
+      <div class="l-tarjeta" id="tarjeta">
+        <h1>Iniciar sesión</h1>
+        <p class="l-sub">Elige tu perfil e ingresa con tu usuario.</p>
+
+        <div class="l-roles" role="radiogroup" aria-label="Perfil">
+          {ORDEN_ROLES.map((r) => (
+            <button type="button" class="l-rol" role="radio" aria-checked={r === 'estudiante' ? 'true' : 'false'} data-elegir={r} style={`--c:${ROLES[r].color}`}>
+              <span>{ROLES[r].emoji}</span><small>{NOMBRE_CORTO[r]}</small>
+            </button>
+          ))}
+        </div>
+
+        <form id="form-login" novalidate>
+          <label class="l-campo">
+            <span>Usuario</span>
+            <div class="l-control"><Fragment set:html={icono('usuario', 18)} /><input id="usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Tu usuario" required /></div>
+          </label>
+          <label class="l-campo">
+            <span>Contraseña</span>
+            <div class="l-control"><Fragment set:html={icono('llave', 18)} /><input id="clave" name="clave" type="password" autocomplete="current-password" placeholder="••••••" required />
+              <button type="button" class="l-ojo" id="ver-clave" aria-label="Mostrar contraseña" title="Mostrar contraseña"><Fragment set:html={icono('ojo', 18)} /></button></div>
+          </label>
+          <div class="l-fila">
+            <label class="check"><input type="checkbox" id="recordar" /> Recordarme</label>
+            <button type="button" class="l-olvide" id="olvide">¿Olvidaste tu contraseña?</button>
+          </div>
+          <div class="l-error" id="error" role="alert" hidden></div>
+          <button type="submit" class="l-entrar" id="btn-entrar"><span id="texto-entrar">Ingresar al {inicial.portal}</span><Fragment set:html={icono('derecha', 18)} /></button>
+        </form>
+
+        <div class="l-demo">
+          <span class="l-demo-icono">🧪</span>
+          <div><strong>Cuenta de demostración</strong><small><span>Usuario <code id="demo-usuario">estudiante</code></span><span>Contraseña <code>12345</code></span></small></div>
+          <button type="button" id="usar-demo">Usar</button>
+        </div>
+      </div>
+      <p class="l-legal">Datos ficticios de demostración · Se guardan solo en este navegador</p>
+    </main>
+  </div>
+</Publico>
+
+<script>
+  import { iniciarSesion } from '../lib/sesion';
+  import { obtener } from '../lib/datos';
+  import { ROLES } from '../lib/escuela';
+  import { ORDEN_ROLES, PUNTOS_ROL, USUARIO_DEMO } from '../lib/presentacion';
+  import { icono } from '../lib/iconos';
+  import { escapar } from '../lib/formato';
+  import { ruta } from '../lib/ruta';
+  import { aviso } from '../lib/ui';
+  import type { Rol } from '../lib/tipos';
+
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const form = $<HTMLFormElement>('form-login');
+  const usuario = $<HTMLInputElement>('usuario');
+  const clave = $<HTMLInputElement>('clave');
+  const recordar = $<HTMLInputElement>('recordar');
+  const error = $('error');
+  const boton = $<HTMLButtonElement>('btn-entrar');
+  let rol = (document.documentElement.dataset.rol as Rol) || 'estudiante';
+
+  function elegir(r: Rol, enfocar = false) {
+    rol = r;
+    document.documentElement.dataset.rol = r;
+    document.querySelectorAll<HTMLElement>('[data-elegir]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.elegir === r)));
+    const info = ROLES[r];
+    $('panel-emoji').textContent = info.emoji;
+    $('panel-titulo').textContent = info.portal;
+    $('panel-texto').textContent = info.descripcion;
+    $('panel-puntos').innerHTML = PUNTOS_ROL[r].map((p) => `<li><span>${icono('check', 14)}</span>${escapar(p)}</li>`).join('');
+    $('texto-entrar').textContent = `Ingresar al ${info.portal}`;
+    $('demo-usuario').textContent = USUARIO_DEMO[r];
+    error.hidden = true;
+    history.replaceState(null, '', `?rol=${r}`);
+    try { localStorage.setItem('escuelapro:rol', r); } catch { /* sin almacenamiento */ }
+    if (enfocar) usuario.focus();
+  }
+
+  function mostrarError(mensaje: string, rolCorrecto?: Rol) {
+    error.innerHTML = `${icono('alerta', 18)}<div><p>${escapar(mensaje)}</p>${rolCorrecto ? `<button type="button" data-cambiar="${rolCorrecto}">${ROLES[rolCorrecto].emoji} Cambiar al ${ROLES[rolCorrecto].portal}</button>` : ''}</div>`;
+    error.hidden = false;
+    error.querySelector<HTMLElement>('[data-cambiar]')?.addEventListener('click', () => { elegir(rolCorrecto!); form.requestSubmit(); });
+    const t = $('tarjeta'); t.classList.remove('temblar'); void t.offsetWidth; t.classList.add('temblar');
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-elegir]').forEach((b) => b.addEventListener('click', () => elegir(b.dataset.elegir as Rol, true)));
+  // Flechas del teclado para cambiar de perfil
+  document.querySelector('.l-roles')!.addEventListener('keydown', (e) => {
+    const k = (e as KeyboardEvent).key; if (k !== 'ArrowRight' && k !== 'ArrowLeft') return;
+    const i = ORDEN_ROLES.indexOf(rol); const n = ORDEN_ROLES[(i + (k === 'ArrowRight' ? 1 : -1) + ORDEN_ROLES.length) % ORDEN_ROLES.length];
+    elegir(n); document.querySelector<HTMLElement>(`[data-elegir="${n}"]`)!.focus();
+  });
+
+  $('ver-clave').addEventListener('click', () => {
+    const ver = clave.type === 'password';
+    clave.type = ver ? 'text' : 'password';
+    $('ver-clave').classList.toggle('activo', ver);
+    $('ver-clave').setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+  });
+  $('usar-demo').addEventListener('click', () => { usuario.value = USUARIO_DEMO[rol]; clave.value = '12345'; error.hidden = true; boton.focus(); });
+  $('olvide').addEventListener('click', () => aviso('Pide a la administración del colegio que restablezca tu contraseña. En la demo, todas son 12345.', 'info'));
+  [usuario, clave].forEach((c) => c.addEventListener('input', () => { error.hidden = true; }));
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!usuario.value.trim() || !clave.value) { mostrarError('Escribe tu usuario y tu contraseña.'); return; }
+    boton.disabled = true; boton.classList.add('cargando');
+    setTimeout(() => {
+      const r = iniciarSesion(usuario.value, clave.value, rol, recordar.checked);
+      if (r.ok) {
+        $('texto-entrar').textContent = `¡Bienvenido, ${r.usuario.nombre.split(' ')[0]}!`;
+        location.href = ruta(`/${rol}/`);
+        return;
+      }
+      boton.disabled = false; boton.classList.remove('cargando');
+      const u = obtener('usuarios').find((x) => x.usuario.toLowerCase() === usuario.value.trim().toLowerCase() && x.clave === clave.value && x.activo);
+      mostrarError(r.error, u && u.rol !== rol ? u.rol : undefined);
+    }, 420);
+  });
+
+  elegir(rol);
+  usuario.focus();
+</script>
+
+<style is:global>
+  @property --rol { syntax: '<color>'; inherits: true; initial-value: #4f46e5; }
+  @property --rol-2 { syntax: '<color>'; inherits: true; initial-value: #818cf8; }
+  @property --rol-texto { syntax: '<color>'; inherits: true; initial-value: #3730a3; }
+  html { transition: --rol .45s ease, --rol-2 .45s ease, --rol-texto .45s ease; }
+
+  .l-pagina { min-height: 100vh; display: grid; grid-template-columns: minmax(380px, 46%) 1fr; }
+
+  /* Panel de color */
+  .l-panel { position: relative; overflow: hidden; display: flex; flex-direction: column; padding: 2.2rem 3rem; color: #fff;
+    background: radial-gradient(520px 420px at 110% -10%, color-mix(in srgb, var(--rol-2) 75%, transparent), transparent 70%), linear-gradient(150deg, var(--rol) 0%, var(--rol-texto) 100%); }
+  .l-panel::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .14;
+    background-image: radial-gradient(rgba(255, 255, 255, .9) 1px, transparent 1.4px); background-size: 22px 22px; mask-image: linear-gradient(180deg, transparent, #000 40%, transparent); }
+  .l-circulo { position: absolute; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .18); pointer-events: none; }
+  .l-circulo.c1 { width: 520px; height: 520px; right: -220px; bottom: -200px; }
+  .l-circulo.c2 { width: 320px; height: 320px; right: -120px; bottom: -100px; background: rgba(255, 255, 255, .05); }
+  .l-marca { position: relative; z-index: 1; display: flex; align-items: center; gap: .7rem; font-weight: 800; font-size: 1.2rem; letter-spacing: -.02em; line-height: 1.1; }
+  .l-marca small { display: block; font-size: .72rem; font-weight: 600; opacity: .75; letter-spacing: 0; }
+  .l-logo { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(255, 255, 255, .18); border: 1px solid rgba(255, 255, 255, .25); }
+  .l-panel-centro { position: relative; z-index: 1; margin: auto 0; padding: 2.5rem 0; max-width: 30rem; }
+  .l-panel-emoji { width: 84px; height: 84px; border-radius: 24px; display: grid; place-items: center; font-size: 2.6rem; background: rgba(255, 255, 255, .16); border: 1px solid rgba(255, 255, 255, .28); box-shadow: 0 18px 40px rgba(0, 0, 0, .15); backdrop-filter: blur(6px); }
+  .l-panel h2 { font-size: clamp(1.9rem, 3vw, 2.6rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; margin: 1.4rem 0 .6rem; }
+  .l-panel-centro > p { font-size: 1.05rem; opacity: .88; }
+  .l-panel ul { list-style: none; display: grid; gap: .7rem; margin-top: 1.8rem; }
+  .l-panel li { display: flex; align-items: center; gap: .7rem; font-weight: 600; }
+  .l-panel li span { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: rgba(255, 255, 255, .2); flex-shrink: 0; }
+  .l-panel-pie { position: relative; z-index: 1; font-size: .82rem; opacity: .75; }
+
+  /* Formulario */
+  .l-principal { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1.5rem; gap: 1.2rem; background: radial-gradient(500px 300px at 100% 0%, var(--rol-claro), transparent 70%), var(--fondo); }
+  .l-volver { align-self: center; width: min(460px, 100%); display: inline-flex; align-items: center; gap: .35rem; font-size: .88rem; font-weight: 700; color: var(--texto-2); }
+  .l-volver:hover { color: var(--rol); }
+  .l-tarjeta { width: min(460px, 100%); padding: 2.2rem; border-radius: 24px; background: #fff; border: 1px solid var(--borde); box-shadow: 0 24px 60px rgba(15, 23, 42, .08); }
+  .l-tarjeta h1 { font-size: 1.75rem; font-weight: 800; letter-spacing: -.03em; }
+  .l-sub { color: var(--texto-2); margin: .25rem 0 1.4rem; }
+  .l-tarjeta.temblar { animation: l-temblar .4s; }
+  @keyframes l-temblar { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+
+  .l-roles { display: grid; grid-template-columns: repeat(5, 1fr); gap: .45rem; margin-bottom: 1.4rem; }
+  .l-rol { display: grid; justify-items: center; gap: .2rem; padding: .7rem .2rem .55rem; border-radius: 14px; border: 1.5px solid var(--borde); background: #fff; cursor: pointer; transition: border-color .15s, background .15s, transform .15s, box-shadow .15s; }
+  .l-rol span { font-size: 1.35rem; line-height: 1; }
+  .l-rol small { font-size: .72rem; font-weight: 700; color: var(--texto-2); }
+  .l-rol:hover { border-color: color-mix(in srgb, var(--c) 45%, white); transform: translateY(-1px); }
+  .l-rol[aria-checked='true'] { border-color: var(--c); background: color-mix(in srgb, var(--c) 9%, white); box-shadow: 0 6px 16px color-mix(in srgb, var(--c) 22%, transparent); }
+  .l-rol[aria-checked='true'] small { color: var(--c); }
+  .l-rol:focus-visible { outline: 3px solid color-mix(in srgb, var(--c) 35%, transparent); outline-offset: 2px; }
+
+  #form-login { display: grid; gap: 1rem; }
+  .l-campo { display: grid; gap: .4rem; }
+  .l-campo > span { font-size: .85rem; font-weight: 700; }
+  .l-control { display: flex; align-items: center; gap: .6rem; padding: 0 .9rem; border-radius: 13px; border: 1.5px solid var(--borde-2); background: #fbfcfe; color: var(--texto-3); transition: border-color .15s, box-shadow .15s, background .15s; }
+  .l-control:focus-within { border-color: var(--rol); background: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--rol) 15%, transparent); color: var(--rol); }
+  .l-control input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; padding: .85rem 0; font-size: .98rem; color: var(--texto); }
+  .l-ojo { border: 0; background: none; color: var(--texto-3); cursor: pointer; display: grid; place-items: center; padding: .3rem; border-radius: 8px; }
+  .l-ojo:hover, .l-ojo.activo { color: var(--rol); background: var(--rol-claro); }
+  .l-fila { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .l-fila .check { font-size: .88rem; }
+  .l-olvide { border: 0; background: none; color: var(--rol); font-weight: 700; font-size: .86rem; cursor: pointer; }
+  .l-olvide:hover { text-decoration: underline; }
+  .l-error { display: flex; gap: .65rem; padding: .8rem .95rem; border-radius: 12px; background: var(--rojo-claro); color: #991b1b; font-size: .88rem; font-weight: 600; }
+  .l-error > svg { flex-shrink: 0; margin-top: .1rem; }
+  .l-error button { margin-top: .5rem; border: 0; border-radius: 9px; padding: .45rem .75rem; background: #fff; color: #991b1b; font-weight: 700; font-size: .84rem; cursor: pointer; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+  .l-error button:hover { background: #fef2f2; }
+  .l-entrar { display: flex; align-items: center; justify-content: center; gap: .55rem; padding: .95rem; border: 0; border-radius: 14px; color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer;
+    background: linear-gradient(135deg, var(--rol), var(--rol-texto)); box-shadow: 0 12px 26px color-mix(in srgb, var(--rol) 35%, transparent); transition: transform .15s, box-shadow .15s, opacity .15s; }
+  .l-entrar:hover { transform: translateY(-1px); box-shadow: 0 16px 32px color-mix(in srgb, var(--rol) 42%, transparent); }
+  .l-entrar:disabled { opacity: .85; cursor: progress; transform: none; }
+  .l-entrar.cargando svg { display: none; }
+  .l-entrar.cargando::after { content: ''; width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(255, 255, 255, .4); border-top-color: #fff; animation: l-girar .7s linear infinite; }
+  @keyframes l-girar { to { transform: rotate(360deg); } }
+
+  .l-demo { display: flex; align-items: center; gap: .8rem; margin-top: 1.4rem; padding: .85rem 1rem; border-radius: 14px; border: 1.5px dashed color-mix(in srgb, var(--rol) 35%, white); background: var(--rol-claro); }
+  .l-demo-icono { font-size: 1.3rem; }
+  .l-demo > div { flex: 1; display: grid; line-height: 1.35; }
+  .l-demo strong { font-size: .86rem; color: var(--rol-texto); }
+  .l-demo small { display: flex; flex-wrap: wrap; column-gap: .7rem; row-gap: .15rem; font-size: .8rem; color: var(--texto-2); }
+  .l-demo code { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--texto); background: #fff; padding: .05rem .35rem; border-radius: 5px; }
+  .l-demo button { border: 0; border-radius: 10px; padding: .55rem .95rem; background: var(--rol); color: #fff; font-weight: 700; font-size: .85rem; cursor: pointer; }
+  .l-demo button:hover { filter: brightness(1.08); }
+  .l-legal { font-size: .78rem; color: var(--texto-3); text-align: center; }
+
+  @media (max-width: 900px) {
+    .l-pagina { grid-template-columns: 1fr; }
+    .l-panel { padding: 1.4rem 1.5rem 1.6rem; }
+    .l-panel-centro { margin: 0; padding: 1.2rem 0 0; display: grid; grid-template-columns: auto 1fr; column-gap: 1rem; align-items: center; }
+    .l-panel-emoji { width: 60px; height: 60px; font-size: 1.8rem; border-radius: 18px; grid-row: span 2; }
+    .l-panel h2 { font-size: 1.35rem; margin: 0; }
+    .l-panel-centro > p { font-size: .88rem; }
+    .l-panel ul, .l-panel-pie, .l-circulo { display: none; }
+    .l-principal { justify-content: flex-start; padding-top: 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    .l-tarjeta { padding: 1.5rem 1.2rem; border-radius: 20px; }
+    .l-roles { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>

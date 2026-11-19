@@ -1,0 +1,12 @@
+---
+import Portal from '../../layouts/Portal.astro';
+---
+<Portal rol="maestro" activo="tareas" titulo="Tareas">
+  <div id="vista"></div>
+</Portal>
+
+<script>
+  import { iniciar } from '../../lib/app';
+  import { tareasMaestro } from '../../paginas/maestro';
+  iniciar(tareasMaestro);
+</script>

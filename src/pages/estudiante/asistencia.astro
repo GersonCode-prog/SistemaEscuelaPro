@@ -1,0 +1,12 @@
+---
+import Portal from '../../layouts/Portal.astro';
+---
+<Portal rol="estudiante" activo="asistencia" titulo="Mi asistencia">
+  <div id="vista"></div>
+</Portal>
+
+<script>
+  import { iniciar } from '../../lib/app';
+  import { paginaAsistencia } from '../../paginas/academico';
+  iniciar(paginaAsistencia);
+</script>

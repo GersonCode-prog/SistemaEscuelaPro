@@ -1,0 +1,12 @@
+---
+import Portal from '../../layouts/Portal.astro';
+---
+<Portal rol="admin" activo="usuarios" titulo="Usuarios">
+  <div id="vista"></div>
+</Portal>
+
+<script>
+  import { iniciar } from '../../lib/app';
+  import { usuariosAdmin } from '../../paginas/admin';
+  iniciar(usuariosAdmin);
+</script>

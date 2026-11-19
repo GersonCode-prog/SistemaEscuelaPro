@@ -1,0 +1,30 @@
+---
+// Página no encontrada
+import Publico from '../layouts/Publico.astro';
+import { icono } from '../lib/iconos';
+import { ruta } from '../lib/ruta';
+---
+<Publico titulo="Página no encontrada · EscuelaPro">
+  <main class="nf">
+    <span class="nf-emoji">🧭</span>
+    <p class="nf-codigo">Error 404</p>
+    <h1>Esta página no existe</h1>
+    <p class="nf-texto">Puede que el enlace esté mal escrito o que la página se haya movido.</p>
+    <div class="nf-acciones">
+      <a class="nf-btn nf-primario" href={ruta('/login')}><Fragment set:html={icono('entrar', 18)} /> Ir a mi portal</a>
+      <a class="nf-btn" href={ruta('/')}><Fragment set:html={icono('inicio', 18)} /> Sitio del colegio</a>
+    </div>
+  </main>
+</Publico>
+
+<style>
+  .nf { min-height: 100vh; display: grid; place-content: center; justify-items: center; text-align: center; padding: 2rem;
+    background: radial-gradient(500px 340px at 80% 10%, rgba(79, 70, 229, .14), transparent 70%), radial-gradient(500px 340px at 15% 90%, rgba(5, 150, 105, .12), transparent 70%), #f8fafc; }
+  .nf-emoji { width: 96px; height: 96px; border-radius: 28px; display: grid; place-items: center; font-size: 3rem; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, .1); }
+  .nf-codigo { margin-top: 1.6rem; font-size: .8rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #4f46e5; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; letter-spacing: -.03em; margin: .4rem 0 .6rem; }
+  .nf-texto { color: var(--texto-2); max-width: 26rem; }
+  .nf-acciones { display: flex; gap: .7rem; flex-wrap: wrap; justify-content: center; margin-top: 2rem; }
+  .nf-btn { display: inline-flex; align-items: center; gap: .5rem; padding: .8rem 1.2rem; border-radius: 13px; font-weight: 700; background: #fff; border: 1px solid var(--borde); }
+  .nf-primario { background: #0f172a; color: #fff; border-color: #0f172a; }
+</style>

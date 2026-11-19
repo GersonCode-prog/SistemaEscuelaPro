@@ -1,0 +1,101 @@
+---
+// Plantilla de todos los portales: protege la página según el rol
+import '@fontsource-variable/plus-jakarta-sans';
+import '../styles/global.css';
+import type { Rol } from '../lib/tipos';
+import { MENUS } from '../lib/menus';
+import { ROLES } from '../lib/escuela';
+import { icono } from '../lib/iconos';
+import { ruta } from '../lib/ruta';
+
+interface Props { rol: Rol; activo: string; titulo: string; subtitulo?: string; }
+const { rol, activo, titulo, subtitulo = '' } = Astro.props;
+const menu = MENUS[rol];
+const base = ruta('');
+const urlLogin = ruta('/login');
+---
+<!doctype html>
+<html lang="es" data-rol={rol}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{titulo} | EscuelaPro</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+    <!-- Sin sesión: al login. Rol distinto: a su propio portal -->
+    <script is:inline define:vars={{ rol, urlLogin, base }}>
+      (function () {
+        var s = null;
+        try { s = JSON.parse(sessionStorage.getItem('ep_sesion') || localStorage.getItem('ep_sesion') || 'null'); } catch (e) {}
+        if (!s) location.replace(urlLogin);
+        else if (s.rol !== rol) location.replace(base + '/' + s.rol + '/');
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="lateral" id="lateral">
+        <a class="marca" href={ruta(`/${rol}/`)}>
+          <span class="marca-logo"><Fragment set:html={icono('birrete', 22)} /></span>
+          <span class="marca-texto">Escuela<b>Pro</b><small>Colegio Valle Esmeralda</small></span>
+        </a>
+        <div class="rol-chip"><span>{ROLES[rol].emoji}</span>{ROLES[rol].portal}</div>
+        <nav class="nav">
+          {menu.map((item) => (
+            <>
+              {item.grupo && <p class="nav-grupo">{item.grupo}</p>}
+              <a href={ruta(item.ruta)} class:list={['nav-item', { activo: item.id === activo }]}>
+                <Fragment set:html={icono(item.icono)} />
+                <span>{item.texto}</span>
+                <span class="nav-insignia" data-insignia={item.id} hidden></span>
+              </a>
+            </>
+          ))}
+        </nav>
+        <div class="lateral-pie">
+          <a class="usuario-mini" href={ruta(`/${rol}/perfil`)} title="Mi perfil">
+            <span id="lat-avatar"></span>
+            <span class="usuario-mini-texto"><strong id="lat-nombre"></strong><small id="lat-detalle"></small></span>
+          </a>
+          <button type="button" class="btn-icono" id="btn-salir" title="Cerrar sesión" aria-label="Cerrar sesión"><Fragment set:html={icono('salir', 18)} /></button>
+        </div>
+      </aside>
+      <div class="fondo-movil" id="fondo-movil"></div>
+
+      <div class="principal">
+        <header class="superior">
+          <button type="button" class="btn-icono solo-movil" id="btn-menu" aria-label="Abrir menú"><Fragment set:html={icono('menu')} /></button>
+          <div class="superior-titulo">
+            <h1>{titulo}</h1>
+            <p id="superior-sub">{subtitulo}</p>
+          </div>
+          <div class="superior-acciones">
+            {rol === 'padre' && <div class="selector-hijo" id="selector-hijo"></div>}
+            <div class="desplegable">
+              <button type="button" class="btn-icono campana" id="btn-campana" aria-label="Notificaciones">
+                <Fragment set:html={icono('campana')} /><span class="notif-cuenta" id="notif-cuenta" hidden></span>
+              </button>
+              <div class="panel-desplegable notificaciones" id="panel-notif" hidden></div>
+            </div>
+            <div class="desplegable">
+              <button type="button" class="perfil-btn" id="btn-perfil" aria-label="Mi cuenta"><span id="sup-avatar"></span><Fragment set:html={icono('abajo', 16)} /></button>
+              <div class="panel-desplegable menu-perfil" id="panel-perfil" hidden>
+                <div class="menu-cabecera" id="menu-cabecera"></div>
+                <a href={ruta(`/${rol}/perfil`)}><Fragment set:html={icono('usuario', 18)} /> Mi perfil</a>
+                <a href={ruta('/')}><Fragment set:html={icono('edificio', 18)} /> Sitio del colegio</a>
+                <button type="button" id="btn-salir-2"><Fragment set:html={icono('salir', 18)} /> Cerrar sesión</button>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="contenido">
+          <slot />
+        </main>
+      </div>
+    </div>
+    <script>
+      import { montarPortal } from '../lib/portal';
+      montarPortal();
+    </script>
+  </body>
+</html>

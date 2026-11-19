@@ -1,0 +1,12 @@
+---
+import Portal from '../../layouts/Portal.astro';
+---
+<Portal rol="estudiante" activo="horario" titulo="Mi horario">
+  <div id="vista"></div>
+</Portal>
+
+<script>
+  import { iniciar } from '../../lib/app';
+  import { paginaHorario } from '../../paginas/academico';
+  iniciar(paginaHorario);
+</script>

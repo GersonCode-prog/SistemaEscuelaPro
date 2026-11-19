@@ -1,0 +1,12 @@
+---
+import Portal from '../../layouts/Portal.astro';
+---
+<Portal rol="director" activo="avisos" titulo="Avisos">
+  <div id="vista"></div>
+</Portal>
+
+<script>
+  import { iniciar } from '../../lib/app';
+  import { paginaAvisos } from '../../paginas/comunidad';
+  iniciar(paginaAvisos);
+</script>
